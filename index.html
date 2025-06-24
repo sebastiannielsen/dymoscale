@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head></head>
+<body>
+
+<button type="button" onclick="DymoScale()">Connect Scale</button>
+
+<div id="Scale"><h1>0 g</h1></div>
+
+<script type="application/javascript">
+
+var device = null;
+var scaleValue = null;
+
+function setscale(weight, weird) {
+        var scaleDiv = document.getElementById('Scale');
+        if (weird == 1) {
+                scaleDiv.innerHTML = "<h1> " + weight.toString() + " oz</h1>";
+        }
+        else
+        {
+                scaleDiv.innerHTML = "<h1> " + weight.toString() + " g</h1>";
+        }
+}
+
+function onInputReport(event) {
+        scaleValue = event.data;
+        if (event.reportId == 0x03) {
+                if ((event.device.productId == 0x8007)||(event.device.productId == 0x8008)||(event.device.productId == 0x8009)) { // S-series of scales, measures in whole kgs or lbs
+                        if (scaleValue.getUint8(1) == 12) { //User of scale is weird, correct for weirdness
+                                if (scaleValue.getUint8(0) == 4) {
+                                        setscale(Number((scaleValue.getUint8(3)) + Number(scaleValue.getUint8(4) * 256)) * 1.6, 1);
+                                }
+                                else
+                                {
+                                        setscale(Number((scaleValue.getUint8(3)) + Number(scaleValue.getUint8(4) * 256)) * -1.6, 1);
+                                }
+                        }
+                        else
+                        {
+                                if (scaleValue.getUint8(0) == 4) {
+                                        setscale(Number((scaleValue.getUint8(3)) + Number(scaleValue.getUint8(4) * 256)) * 100, 0);
+                                }
+                                else
+                                {
+                                        setscale(Number((scaleValue.getUint8(3)) + Number(scaleValue.getUint8(4) * 256)) * -100, 0);
+                                }
+                        }
+                }
+
+                if ((event.device.productId == 0x8003)||(event.device.productId == 0x8004)||(event.device.productId == 0x8005)||(event.device.productId == 0x8006)) { // M-series of scales, measures in g or oz.
+                        if (scaleValue.getUint8(1) == 11) { //User of scale is weird, correct for weirdness
+                                if (scaleValue.getUint8(0) == 4) {
+                                        setscale(Number((scaleValue.getUint8(3)) + Number(scaleValue.getUint8(4) * 256)) / 10, 1);
+                                }
+                                else
+                                {
+                                        setscale((Number(scaleValue.getUint8(3)) + Number(scaleValue.getUint8(4) * -256)) / 10, 1);
+                                }
+                        }
+                        else
+                        {
+                                if (scaleValue.getUint8(0) == 4) {
+                                        setscale(Number(scaleValue.getUint8(3)) + Number(scaleValue.getUint8(4) * 256), 0);
+                                }
+                                else
+                                {
+                                        setscale(Number(scaleValue.getUint8(3)) + Number(scaleValue.getUint8(4) * -256), 0);
+                                }
+                        }
+                }
+        }
+}
+
+async function DymoScale() {
+        var scaleDiv = document.getElementById('Scale');
+        if (!navigator.hid) {
+                scaleDiv.innerHTML = "<h1>Your browser doesn't support HID</h1>";
+                return;
+        }
+        device = await navigator.hid.requestDevice({filters: [{ vendorId: 0x0922, productId: 0x8008 },{ vendorId: 0x0922, productId: 0x8009 },{ vendorId: 0x0922, productId: 0x8003 }, { vendorId: 0x0922, productId: 0x8004 },{ vendorId: 0x0922, productId: 0x8005 },{ vendorId: 0x0922, productId: 0x8006 },{ vendorId: 0x0922, productId: 0x8007 }]});
+        if (!device[0]) {
+                scaleDiv.innerHTML = "<h1>User cancelled permission dialog or scale was not connected to computer</h1>";
+                return;
+        }
+        await device[0].open();
+        if (!device[0].opened) {
+                scaleDiv.innerHTML = "<h1>Weird failure</h1>";
+                return;
+        }
+        device[0].oninputreport = onInputReport;
+}
+</script>
+</body>
+</html>
